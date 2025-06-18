@@ -43,7 +43,7 @@ export function Home() {
             type="submit"
             className="w-full bg-indigo-600 hover:bg-indigo-700 transition-all duration-200 text-white py-3 px-6 rounded-xl text-lg font-semibold shadow-md"
           >
-            ✨ Generate Website Plan
+            ✨ Generate App
           </button>
         </form>
       </div>
