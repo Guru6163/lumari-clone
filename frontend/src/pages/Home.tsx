@@ -14,35 +14,37 @@ export function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center p-4">
-      <div className="max-w-2xl w-full">
-        <div className="text-center mb-8">
+    <div className="min-h-screen w-full bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] flex items-center justify-center px-4">
+      <div className="w-full max-w-3xl text-center">
+        <div className="mb-10">
           <div className="flex justify-center mb-4">
-            <Wand2 className="w-12 h-12 text-blue-400" />
+            <Wand2 className="w-14 h-14 text-indigo-400 animate-pulse" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-100 mb-4">
-            Website Builder AI
+          <h1 className="text-5xl md:text-6xl font-extrabold text-white tracking-tight">
+            Lumari Clone <span className="text-indigo-400">.io</span>
           </h1>
-          <p className="text-lg text-gray-300">
-            Describe your dream website, and we'll help you build it step by step
+          <p className="mt-4 text-xl text-gray-300 max-w-xl mx-auto">
+            Describe your dream website — Lumari AI will turn your vision into a reality.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="bg-gray-800 rounded-lg shadow-lg p-6">
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe the website you want to build..."
-              className="w-full h-32 p-4 bg-gray-900 text-gray-100 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none placeholder-gray-500"
-            />
-            <button
-              type="submit"
-              className="w-full mt-4 bg-blue-600 text-gray-100 py-3 px-6 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-            >
-              Generate Website Plan
-            </button>
-          </div>
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white/5 backdrop-blur-md rounded-2xl shadow-2xl p-8 space-y-4 border border-white/10"
+        >
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="e.g., A sleek portfolio site with a dark theme and animations..."
+            className="w-full h-40 p-4 bg-black/40 text-white placeholder-gray-400 rounded-xl border border-white/10 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+          />
+
+          <button
+            type="submit"
+            className="w-full bg-indigo-600 hover:bg-indigo-700 transition-all duration-200 text-white py-3 px-6 rounded-xl text-lg font-semibold shadow-md"
+          >
+            ✨ Generate Website Plan
+          </button>
         </form>
       </div>
     </div>
