@@ -26,7 +26,7 @@ export function parseXml(response: string): Step[] {
     
     let match;
     while ((match = actionRegex.exec(xmlContent)) !== null) {
-      const [, type, filePath, content] = match;
+      const [ type, filePath, content] = match;
   
       if (type === 'file') {
         steps.push({

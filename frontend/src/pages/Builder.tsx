@@ -12,13 +12,11 @@ import axios from "axios";
 import { BACKEND_URL } from "../congif";
 import { parseXml } from "../steps";
 import { useWebContainer } from "../hooks/useWebContainer";
-import { FileNode } from "@webcontainer/api";
 import { Loader } from "../components/Loader";
 
 export function Builder() {
   const location = useLocation();
   const { prompt } = location.state as { prompt: string };
-  const [userPrompt, setPrompt] = useState("");
   const [llmMessages, setLlmMessages] = useState<
     { role: "user" | "assistant"; content: string }[]
   >([]);
@@ -232,56 +230,6 @@ export function Builder() {
                 <div className="flex">
                   <br />
                   {(loading || !templateSet) && <Loader />}
-                  {!(loading || !templateSet) && (
-                    <div className="flex">
-                      <textarea
-                        value={userPrompt}
-                        onChange={(e) => {
-                          setPrompt(e.target.value);
-                        }}
-                        className="p-2 w-full"
-                      ></textarea>
-                      <button
-                        onClick={async () => {
-                          const newMessage = {
-                            role: "user" as "user",
-                            content: userPrompt,
-                          };
-
-                          setLoading(true);
-                          const stepsResponse = await axios.post(
-                            `${BACKEND_URL}/chat`,
-                            {
-                              messages: [...llmMessages, newMessage],
-                            }
-                          );
-                          setLoading(false);
-
-                          setLlmMessages((x) => [...x, newMessage]);
-                          setLlmMessages((x) => [
-                            ...x,
-                            {
-                              role: "assistant",
-                              content: stepsResponse.data.response,
-                            },
-                          ]);
-
-                          setSteps((s) => [
-                            ...s,
-                            ...parseXml(stepsResponse.data.response).map(
-                              (x) => ({
-                                ...x,
-                                status: "pending" as "pending",
-                              })
-                            ),
-                          ]);
-                        }}
-                        className="bg-purple-400 px-4"
-                      >
-                        Send
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
