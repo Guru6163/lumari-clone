@@ -190,18 +190,6 @@ export function Builder() {
       );
       return [...s, ...newSteps];
     });
-
-    setLlmMessages(
-      [...prompts, prompt].map((content) => ({
-        role: "user",
-        content,
-      }))
-    );
-
-    setLlmMessages((x) => [
-      ...x,
-      { role: "assistant", content: stepsResponse.data.response },
-    ]);
   }
 
   useEffect(() => {
