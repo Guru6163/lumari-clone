@@ -9,6 +9,14 @@ import cors from "cors";
 
 const anthropic = new Anthropic();
 const app = express();
+
+// Add cross-origin isolation headers for all responses
+app.use((req, res, next) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+  next();
+});
+
 app.use(cors())
 app.use(express.json())
 
