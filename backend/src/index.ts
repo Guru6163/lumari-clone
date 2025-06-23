@@ -10,6 +10,26 @@ import cors from "cors";
 const anthropic = new Anthropic();
 const app = express();
 
+// List all allowed origins
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://lumari-clone.vercel.app",
+  "https://lumari-cloned.onrender.com/"
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true, // if you use cookies or authentication
+}));
+
 // Add cross-origin isolation headers for all responses
 app.use((req, res, next) => {
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
@@ -17,7 +37,6 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(cors())
 app.use(express.json())
 
 app.post("/template", async (req, res) => {
