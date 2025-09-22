@@ -32,7 +32,7 @@ export function Builder() {
   const webcontainer = useWebContainer();
 
   const [currentStep, setCurrentStep] = useState(1);
-  const [activeTab, setActiveTab] = useState<'code' | 'preview'>('code');
+  const [activeTab, setActiveTab] = useState<'code' | 'preview'>('preview');
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   
   const [steps, setSteps] = useState<Step[]>([]);
@@ -191,32 +191,60 @@ export function Builder() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col">
-      <header className="bg-gray-800 border-b border-gray-700 px-6 py-4">
-        <h1 className="text-xl font-semibold text-gray-100">Website Builder</h1>
-        <p className="text-sm text-gray-400 mt-1">Prompt: {prompt}</p>
-      </header>
-      
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full grid grid-cols-4 gap-6 p-6">
-          <div className="col-span-1 space-y-6 overflow-auto">
+    <div className="h-screen bg-white flex flex-col overflow-hidden">
+      {/* Top Bar */}
+      <div className="flex-shrink-0 border-b border-gray-200 bg-white">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">L</span>
+            </div>
             <div>
-              <div className="max-h-[75vh] overflow-scroll">
-                <StepsList
-                  steps={steps}
-                  currentStep={currentStep}
-                  onStepClick={setCurrentStep}
+              <h1 className="text-sm font-semibold text-gray-900">Lumari</h1>
+              <p className="text-xs text-gray-500 truncate max-w-xs">{prompt}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {!(loading || !templateSet) && (
+              <div className="flex items-center gap-2">
+                <input 
+                  type="text"
+                  value={userPrompt} 
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Ask for changes..."
+                  className="w-64 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      // Trigger send
+                      const newMessage = {
+                        role: "user" as "user",
+                        content: userPrompt
+                      };
+
+                      setLoading(true);
+                      axios.post(`${BACKEND_URL}/chat`, {
+                        messages: [...llmMessages, newMessage]
+                      }).then(stepsResponse => {
+                        setLoading(false);
+                        setLlmMessages(x => [...x, newMessage]);
+                        setLlmMessages(x => [...x, {
+                          role: "assistant",
+                          content: stepsResponse.data.response
+                        }]);
+                        
+                        setSteps(s => [...s, ...parseXml(stepsResponse.data.response).map(x => ({
+                          ...x,
+                          status: "pending" as "pending"
+                        }))]);
+                        setPrompt("");
+                      });
+                    }
+                  }}
                 />
-              </div>
-              <div>
-                <div className='flex'>
-                  <br />
-                  {(loading || !templateSet) && <Loader />}
-                  {!(loading || !templateSet) && <div className='flex'>
-                    <textarea value={userPrompt} onChange={(e) => {
-                    setPrompt(e.target.value)
-                  }} className='p-2 w-full'></textarea>
-                  <button onClick={async () => {
+                <button 
+                  onClick={async () => {
                     const newMessage = {
                       role: "user" as "user",
                       content: userPrompt
@@ -239,27 +267,50 @@ export function Builder() {
                       status: "pending" as "pending"
                     }))]);
 
-                  }} className='bg-purple-400 px-4'>Send</button>
-                  </div>}
-                </div>
+                    setPrompt("");
+                  }} 
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  Send
+                </button>
               </div>
-            </div>
+            )}
           </div>
-          <div className="col-span-1">
-              <FileExplorer 
-                files={files} 
-                onFileSelect={setSelectedFile}
-              />
-            </div>
-          <div className="col-span-2 bg-gray-900 rounded-lg shadow-lg p-4 h-[calc(100vh-8rem)]">
-            <TabView activeTab={activeTab} onTabChange={setActiveTab} />
-            <div className="h-[calc(100%-4rem)]">
-              {activeTab === 'code' ? (
-                <CodeEditor file={selectedFile} />
-              ) : (
-                <PreviewFrame webContainer={webcontainer ?? undefined} files={files} />
-              )}
-            </div>
+        </div>
+      </div>
+      
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Sidebar - Collapsible */}
+        <div className="w-80 border-r border-gray-200 bg-gray-50 flex flex-col">
+          {/* Steps Section */}
+          <div className="h-1/2 border-b border-gray-200">
+            <StepsList
+              steps={steps}
+              currentStep={currentStep}
+              onStepClick={setCurrentStep}
+              loading={loading || !templateSet}
+            />
+          </div>
+          
+          {/* File Explorer Section */}
+          <div className="h-1/2">
+            <FileExplorer 
+              files={files} 
+              onFileSelect={setSelectedFile}
+            />
+          </div>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col bg-white">
+          <TabView activeTab={activeTab} onTabChange={setActiveTab} />
+          <div className="flex-1 min-h-0">
+            {activeTab === 'code' ? (
+              <CodeEditor file={selectedFile} />
+            ) : (
+              <PreviewFrame webContainer={webcontainer ?? undefined} files={files} />
+            )}
           </div>
         </div>
       </div>
