@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { StepsList } from '../components/StepsList';
 import { FileExplorer } from '../components/FileExplorer';
@@ -10,17 +10,9 @@ import axios from 'axios';
 import { BACKEND_URL } from '../congif';
 import { parseXml } from '../steps';
 import { useWebContainer } from '../hooks/useWebContainer';
-import { FileNode } from '@webcontainer/api';
-import { Loader } from '../components/Loader';
+import { FileSystemTree } from '@webcontainer/api';
+import { ErrorDialog } from '../components/ErrorDialog';
 
-const MOCK_FILE_CONTENT = `// This is a sample file content
-import React from 'react';
-
-function Component() {
-  return <div>Hello World</div>;
-}
-
-export default Component;`;
 
 export function Builder() {
   const location = useLocation();
@@ -38,6 +30,19 @@ export function Builder() {
   const [steps, setSteps] = useState<Step[]>([]);
 
   const [files, setFiles] = useState<FileItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+
+  const handleError = useCallback((errorMessage: string) => {
+    setError(errorMessage);
+    setShowErrorDialog(true);
+    setLoading(false);
+  }, []);
+
+  const getErrorMessage = (error: unknown): string => {
+    const errorObj = error as { response?: { data?: { message?: string } }; message?: string };
+    return errorObj.response?.data?.message || errorObj.message || "An unexpected error occurred";
+  };
 
   useEffect(() => {
     let originalFiles = [...files];
@@ -47,17 +52,17 @@ export function Builder() {
       if (step?.type === StepType.CreateFile) {
         let parsedPath = step.path?.split("/") ?? []; // ["src", "components", "App.tsx"]
         let currentFileStructure = [...originalFiles]; // {}
-        let finalAnswerRef = currentFileStructure;
+        const finalAnswerRef = currentFileStructure;
   
         let currentFolder = ""
         while(parsedPath.length) {
           currentFolder =  `${currentFolder}/${parsedPath[0]}`;
-          let currentFolderName = parsedPath[0];
+          const currentFolderName = parsedPath[0];
           parsedPath = parsedPath.slice(1);
   
           if (!parsedPath.length) {
             // final file
-            let file = currentFileStructure.find(x => x.path === currentFolder)
+            const file = currentFileStructure.find(x => x.path === currentFolder)
             if (!file) {
               currentFileStructure.push({
                 name: currentFolderName,
@@ -70,7 +75,7 @@ export function Builder() {
             }
           } else {
             /// in a folder
-            let folder = currentFileStructure.find(x => x.path === currentFolder)
+            const folder = currentFileStructure.find(x => x.path === currentFolder)
             if (!folder) {
               // create the folder
               currentFileStructure.push({
@@ -104,8 +109,8 @@ export function Builder() {
   }, [steps, files]);
 
   useEffect(() => {
-    const createMountStructure = (files: FileItem[]): Record<string, any> => {
-      const mountStructure: Record<string, any> = {};
+    const createMountStructure = (files: FileItem[]): FileSystemTree => {
+      const mountStructure: FileSystemTree = {};
   
       const processFile = (file: FileItem, isRootFolder: boolean) => {  
         if (file.type === 'folder') {
@@ -150,45 +155,64 @@ export function Builder() {
     webcontainer?.mount(mountStructure);
   }, [files, webcontainer]);
 
-  async function init() {
-    const response = await axios.post(`${BACKEND_URL}/template`, {
-      prompt: prompt.trim()
-    });
-    setTemplateSet(true);
-    
-    const {prompts, uiPrompts} = response.data;
+  const init = useCallback(async () => {
+    try {
+      const response = await axios.post(`${BACKEND_URL}/template`, {
+        prompt: prompt.trim()
+      });
+      
+      // Check if response contains an error
+      if (response.data.error) {
+        handleError(response.data.message);
+        return;
+      }
+      
+      setTemplateSet(true);
+      
+      const {prompts, uiPrompts} = response.data;
 
-    setSteps(parseXml(uiPrompts[0]).map((x: Step) => ({
-      ...x,
-      status: "pending"
-    })));
+      setSteps(parseXml(uiPrompts[0]).map((x: Step) => ({
+        ...x,
+        status: "pending"
+      })));
 
-    setLoading(true);
-    const stepsResponse = await axios.post(`${BACKEND_URL}/chat`, {
-      messages: [...prompts, prompt].map(content => ({
+      setLoading(true);
+      const stepsResponse = await axios.post(`${BACKEND_URL}/chat`, {
+        messages: [...prompts, prompt].map(content => ({
+          role: "user",
+          content
+        }))
+      });
+
+      // Check if response contains an error
+      if (stepsResponse.data.error) {
+        handleError(stepsResponse.data.message);
+        return;
+      }
+
+      setLoading(false);
+
+      setSteps(s => [...s, ...parseXml(stepsResponse.data.response).map(x => ({
+        ...x,
+        status: "pending" as const
+      }))]);
+
+      setLlmMessages([...prompts, prompt].map(content => ({
         role: "user",
         content
-      }))
-    })
+      })));
 
-    setLoading(false);
-
-    setSteps(s => [...s, ...parseXml(stepsResponse.data.response).map(x => ({
-      ...x,
-      status: "pending" as "pending"
-    }))]);
-
-    setLlmMessages([...prompts, prompt].map(content => ({
-      role: "user",
-      content
-    })));
-
-    setLlmMessages(x => [...x, {role: "assistant", content: stepsResponse.data.response}])
-  }
+      setLlmMessages(x => [...x, {role: "assistant", content: stepsResponse.data.response}])
+    } catch (error: unknown) {
+      console.error("Error in init:", error);
+      const errorMessage = getErrorMessage(error);
+      handleError(errorMessage);
+    }
+  }, [prompt, handleError]);
 
   useEffect(() => {
     init();
-  }, [])
+  }, [init])
 
   return (
     <div className="h-screen bg-white flex flex-col overflow-hidden">
@@ -219,7 +243,7 @@ export function Builder() {
                       e.preventDefault();
                       // Trigger send
                       const newMessage = {
-                        role: "user" as "user",
+                        role: "user" as const,
                         content: userPrompt
                       };
 
@@ -227,6 +251,12 @@ export function Builder() {
                       axios.post(`${BACKEND_URL}/chat`, {
                         messages: [...llmMessages, newMessage]
                       }).then(stepsResponse => {
+                        // Check if response contains an error
+                        if (stepsResponse.data.error) {
+                          handleError(stepsResponse.data.message);
+                          return;
+                        }
+                        
                         setLoading(false);
                         setLlmMessages(x => [...x, newMessage]);
                         setLlmMessages(x => [...x, {
@@ -236,38 +266,55 @@ export function Builder() {
                         
                         setSteps(s => [...s, ...parseXml(stepsResponse.data.response).map(x => ({
                           ...x,
-                          status: "pending" as "pending"
+                          status: "pending" as const
                         }))]);
                         setPrompt("");
+                      }).catch(error => {
+                        console.error("Error in chat request:", error);
+                        const errorMessage = getErrorMessage(error);
+                        handleError(errorMessage);
                       });
                     }
                   }}
                 />
                 <button 
                   onClick={async () => {
-                    const newMessage = {
-                      role: "user" as "user",
-                      content: userPrompt
-                    };
+                    try {
+                      const newMessage = {
+                        role: "user" as const,
+                        content: userPrompt
+                      };
 
-                    setLoading(true);
-                    const stepsResponse = await axios.post(`${BACKEND_URL}/chat`, {
-                      messages: [...llmMessages, newMessage]
-                    });
-                    setLoading(false);
+                      setLoading(true);
+                      const stepsResponse = await axios.post(`${BACKEND_URL}/chat`, {
+                        messages: [...llmMessages, newMessage]
+                      });
+                      
+                      // Check if response contains an error
+                      if (stepsResponse.data.error) {
+                        handleError(stepsResponse.data.message);
+                        return;
+                      }
+                      
+                      setLoading(false);
 
-                    setLlmMessages(x => [...x, newMessage]);
-                    setLlmMessages(x => [...x, {
-                      role: "assistant",
-                      content: stepsResponse.data.response
-                    }]);
-                    
-                    setSteps(s => [...s, ...parseXml(stepsResponse.data.response).map(x => ({
-                      ...x,
-                      status: "pending" as "pending"
-                    }))]);
+                      setLlmMessages(x => [...x, newMessage]);
+                      setLlmMessages(x => [...x, {
+                        role: "assistant",
+                        content: stepsResponse.data.response
+                      }]);
+                      
+                      setSteps(s => [...s, ...parseXml(stepsResponse.data.response).map(x => ({
+                        ...x,
+                        status: "pending" as const
+                      }))]);
 
-                    setPrompt("");
+                      setPrompt("");
+                    } catch (error: unknown) {
+                      console.error("Error in chat request:", error);
+                      const errorMessage = getErrorMessage(error);
+                      handleError(errorMessage);
+                    }
                   }} 
                   className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors"
                 >
@@ -314,6 +361,13 @@ export function Builder() {
           </div>
         </div>
       </div>
+      
+      {/* Error Dialog */}
+      <ErrorDialog
+        isOpen={showErrorDialog}
+        onClose={() => setShowErrorDialog(false)}
+        error={error || ""}
+      />
     </div>
   );
 }
