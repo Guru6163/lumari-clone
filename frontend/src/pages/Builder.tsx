@@ -24,7 +24,7 @@ export function Builder() {
   const webcontainer = useWebContainer();
 
   const [currentStep, setCurrentStep] = useState(1);
-  const [activeTab, setActiveTab] = useState<'code' | 'preview'>('preview');
+  const [activeTab, setActiveTab] = useState<'code' | 'preview'>('code');
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   
   const [steps, setSteps] = useState<Step[]>([]);
@@ -32,6 +32,7 @@ export function Builder() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [projectReady, setProjectReady] = useState(false);
 
   const handleError = useCallback((errorMessage: string) => {
     setError(errorMessage);
@@ -95,18 +96,40 @@ export function Builder() {
     })
 
     if (updateHappened) {
-
       setFiles(originalFiles)
       setSteps(steps => steps.map((s: Step) => {
         return {
           ...s,
           status: "completed"
         }
-        
       }))
+      
+      // Auto-select the first file and switch to preview tab once files are created
+      if (originalFiles.length > 0 && !selectedFile) {
+        const firstFile = originalFiles.find(file => file.type === 'file');
+        if (firstFile) {
+          setSelectedFile(firstFile);
+        }
+        
+        // Switch to preview tab if project is ready and files are created
+        if (projectReady) {
+          setTimeout(() => {
+            setActiveTab('preview');
+          }, 1000);
+        }
+      }
     }
     console.log(files);
-  }, [steps, files]);
+  }, [steps, files, selectedFile, projectReady]);
+
+  // Switch to preview tab when project is ready and files exist
+  useEffect(() => {
+    if (projectReady && files.length > 0 && activeTab === 'code') {
+      setTimeout(() => {
+        setActiveTab('preview');
+      }, 1500); // Give a bit more time for files to mount
+    }
+  }, [projectReady, files.length, activeTab]);
 
   useEffect(() => {
     const createMountStructure = (files: FileItem[]): FileSystemTree => {
@@ -203,6 +226,9 @@ export function Builder() {
       })));
 
       setLlmMessages(x => [...x, {role: "assistant", content: stepsResponse.data.response}])
+      
+      // Mark project as ready for preview
+      setProjectReady(true);
     } catch (error: unknown) {
       console.error("Error in init:", error);
       const errorMessage = getErrorMessage(error);
@@ -354,7 +380,7 @@ export function Builder() {
           <TabView activeTab={activeTab} onTabChange={setActiveTab} />
           <div className="flex-1 min-h-0">
             {activeTab === 'code' ? (
-              <CodeEditor file={selectedFile} />
+              <CodeEditor file={selectedFile} loading={loading || !templateSet} />
             ) : (
               <PreviewFrame webContainer={webcontainer ?? undefined} files={files} />
             )}
