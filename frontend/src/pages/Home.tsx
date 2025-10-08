@@ -22,10 +22,10 @@ export function Home() {
             </div>
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 tracking-tight mb-4">
-            Lumari
+            grooff.ai
           </h1>
           <p className="text-lg text-gray-600 max-w-lg mx-auto leading-relaxed">
-            Describe your dream website and watch Lumari AI turn your vision into reality.
+            Describe your dream website and watch grooff.ai turn your vision into reality.
           </p>
         </div>
 

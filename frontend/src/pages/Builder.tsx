@@ -250,7 +250,7 @@ export function Builder() {
               <span className="text-white font-bold text-sm">L</span>
             </div>
             <div>
-              <h1 className="text-sm font-semibold text-gray-900">Lumari</h1>
+              <h1 className="text-sm font-semibold text-gray-900">grooff.ai</h1>
               <p className="text-xs text-gray-500 truncate max-w-xs">{prompt}</p>
             </div>
           </div>
